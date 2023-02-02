@@ -1,0 +1,36 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# SPDX-License-Identifier: MIT
+
+{
+  "name": "azure-storage-common-cpp",
+  "version-semver": "@AZ_LIBRARY_VERSION@",
+  "description": [
+    "Microsoft Azure Common Storage SDK for C++",
+    "This library provides common Azure Storage-related abstractions for Azure SDK."
+  ],
+  "homepage": "https://github.com/Azure/azure-sdk-for-cpp/tree/main/sdk/storage/azure-storage-common",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "azure-core-cpp",
+      "default-features": false,
+      "version>=": "1.0.0"
+    },
+    {
+      "name": "libxml2",
+      "platform": "!windows"
+    },
+    {
+      "name": "openssl",
+      "platform": "!windows"
+    },
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

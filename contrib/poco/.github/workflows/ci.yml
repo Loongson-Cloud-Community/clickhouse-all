@@ -1,0 +1,78 @@
+name: poco-ci
+on: [push]
+jobs:
+  linux-gcc-cmake:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - run:
+          sudo apt update &&
+          sudo apt install
+            cmake
+            ninja-build
+            libssl-dev
+            unixodbc-dev
+            libmysqlclient-dev
+            redis-server
+      - run:
+          cmake -H.
+          -Bcmake-build
+          -GNinja
+          -DENABLE_PDF=OFF
+          -DENABLE_TESTS=ON
+          -DPOCO_UNBUNDLED=ON
+          -DPOCO_UNBUNDLED_EXPAT=OFF
+          -DPOCO_UNBUNDLED_PCRE=OFF
+          -DPOCO_UNBUNDLED_SQLITE=OFF
+          &&
+          cmake
+          --build cmake-build
+          --target all
+      - run: >-
+          cd cmake-build &&
+          sudo -s
+          # - testProxy - proxy is unavailable
+          CPPUNIT_IGNORE="N7CppUnit10TestCallerI22HTTPSClientSessionTestEE.testProxy"
+          PWD=`pwd`
+          ctest --output-on-failure -E "(DataMySQL)|(DataODBC)|(PostgreSQL)|(MongoDB)"
+
+# NOTE: for now boringssl in ubuntu repos is too old:
+# - focal           -- BORINGSSL_API_VERSION =  4
+# - hirsute         -- BORINGSSL_API_VERSION =  8
+# - upstream/master -- BORINGSSL_API_VERSION = 16
+#
+##  linux-gcc-cmake-boringssl:
+##    runs-on: ubuntu-20.04
+##    steps:
+##      - uses: actions/checkout@v2
+##      - run:
+##          sudo apt update &&
+##          sudo apt install
+##            cmake
+##            ninja-build
+##            android-libboringssl-dev
+##            unixodbc-dev
+##            libmysqlclient-dev
+##            redis-server
+##      - run:
+##          cmake -H.
+##          -DCMAKE_PREFIX_PATH="/usr/include/android;/usr/lib/x86_64-linux-gnu/android"
+##          -Bcmake-build
+##          -GNinja
+##          -DENABLE_PDF=OFF
+##          -DENABLE_TESTS=ON
+##          -DPOCO_UNBUNDLED=ON
+##          -DPOCO_UNBUNDLED_EXPAT=OFF
+##          -DPOCO_UNBUNDLED_PCRE=OFF
+##          -DPOCO_UNBUNDLED_SQLITE=OFF
+##          &&
+##          cmake
+##          --build cmake-build
+##          --target all
+##      - run: >-
+##          cd cmake-build &&
+##          sudo -s
+##          # - testProxy - proxy is unavailable
+##          CPPUNIT_IGNORE="N7CppUnit10TestCallerI22HTTPSClientSessionTestEE.testProxy"
+##          PWD=`pwd`
+##          ctest --output-on-failure -E "(DataMySQL)|(DataODBC)|(PostgreSQL)|(MongoDB)"

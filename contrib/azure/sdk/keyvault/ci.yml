@@ -1,0 +1,44 @@
+# NOTE: Please refer to https://aka.ms/azsdk/engsys/ci-yaml before editing this file.
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+      - feature/*
+      - release/*
+      - hotfix/*
+  paths:
+    include:
+      - sdk/keyvault
+
+pr:
+  branches:
+    include:
+      - main
+      - feature/*
+      - release/*
+      - hotfix/*
+  paths:
+    include:
+      - sdk/keyvault
+
+stages:
+  - template: ../../eng/pipelines/templates/stages/archetype-sdk-client.yml
+    parameters:
+      ServiceDirectory: keyvault
+      CtestRegex: "azure-security-keyvault.*"
+      LiveTestCtestRegex: "azure-security-keyvault.*"
+      LiveTestTimeoutInMinutes: 120
+      SubscriptionConfiguration: $(sub-config-azure-cloud-test-resources)
+      LineCoverageTarget: 81
+      BranchCoverageTarget: 42
+      Artifacts:
+        - Name: azure-security-keyvault-keys
+          Path: azure-security-keyvault-keys
+          VcpkgPortName: azure-security-keyvault-keys-cpp
+        - Name: azure-security-keyvault-secrets
+          Path: azure-security-keyvault-secrets
+          VcpkgPortName: azure-security-keyvault-secrets-cpp
+        - Name: azure-security-keyvault-certificates
+          Path: azure-security-keyvault-certificates
+          VcpkgPortName: azure-security-keyvault-certificates-cpp

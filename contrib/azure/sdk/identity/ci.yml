@@ -1,0 +1,36 @@
+# NOTE: Please refer to https://aka.ms/azsdk/engsys/ci-yaml before editing this file.
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+      - feature/*
+      - release/*
+      - hotfix/*
+  paths:
+    include:
+      - sdk/identity
+
+pr:
+  branches:
+    include:
+      - main
+      - feature/*
+      - release/*
+      - hotfix/*
+  paths:
+    include:
+      - sdk/identity
+
+stages:
+  - template: ../../eng/pipelines/templates/stages/archetype-sdk-client.yml
+    parameters:
+      ServiceDirectory: identity
+      CtestRegex: azure-identity-unittest.
+      LiveTestCtestRegex: azure-identity-livetest.
+      LineCoverageTarget: 99
+      BranchCoverageTarget: 62
+      Artifacts:
+        - Name: azure-identity
+          Path: azure-identity
+          VcpkgPortName: azure-identity-cpp

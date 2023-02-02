@@ -1,0 +1,207 @@
+parameters:
+  - name: Artifacts
+    type: object
+    default: []
+  - name: ServiceDirectory
+    type: string
+    default: not-specified
+  - name: TestPipeline
+    type: boolean
+    default: false
+  - name: CoverageEnabled
+    type: boolean
+    default: true
+  - name: CtestRegex
+    type: string
+    default: .*
+  - name: CtestExcludeRegex
+    type: string
+    default: ''
+  - name: BuildReleaseArtifacts
+    type: boolean
+    default: true
+  - name: CoverageReportPath
+    type: string
+    default: 'sdk/*/*/*cov_xml.xml'
+  - name: LineCoverageTarget
+    type: number
+    default: 95
+  - name: BranchCoverageTarget
+    type: number
+    default: 70
+
+jobs:
+  - template: /eng/common/pipelines/templates/jobs/archetype-sdk-tests-generate.yml
+    parameters:
+      MatrixConfigs:
+        - Name: base
+          Path: eng/pipelines/templates/stages/platform-matrix.json
+          Selection: all
+          GenerateVMJobs: true
+      JobTemplatePath: /eng/pipelines/templates/jobs/ci.tests.yml
+      AdditionalParameters:
+        Artifacts: ${{ parameters.Artifacts }}
+        ServiceDirectory: ${{ parameters.ServiceDirectory }}
+        TestPipeline: ${{ parameters.TestPipeline }}
+        CtestRegex: ${{ parameters.CtestRegex }}
+        CtestExcludeRegex: ${{ parameters.CtestExcludeRegex }}
+        CoverageReportPath: ${{ parameters.CoverageReportPath }}
+        CoverageEnabled: ${{ parameters.CoverageEnabled }}
+        LineCoverageTarget: ${{ parameters.LineCoverageTarget }}
+        BranchCoverageTarget: ${{ parameters.BranchCoverageTarget }}
+
+  # Disable build for cpp - client
+  - ${{ if ne(parameters.ServiceDirectory, 'not-specified' )}}:
+    - job: GenerateReleaseArtifacts
+      pool:
+        name: azsdk-pool-mms-win-2019-general
+        vmImage: MMS2019
+      variables:
+        VcpkgDependencies: curl[winssl] libxml2
+        VCPKG_DEFAULT_TRIPLET: 'x64-windows-static'
+      steps:
+        - template: /eng/common/pipelines/templates/steps/check-spelling.yml
+          parameters:
+            ContinueOnError: false
+
+        - template: /eng/common/pipelines/templates/steps/verify-links.yml
+          parameters:
+            Directory: ''
+            CheckLinkGuidance: $true
+
+        - ${{ each artifact in parameters.Artifacts }}: 
+          - template: /eng/common/pipelines/templates/steps/set-test-pipeline-version.yml
+            parameters:
+              PackageName: ${{ artifact.Name }}
+              ServiceDirectory: ${{ parameters.ServiceDirectory }}
+              TestPipeline: ${{ parameters.TestPipeline }}
+
+        - pwsh: |
+            $setupFile="doxygen-1.8.18-setup.exe";
+
+            Invoke-WebRequest `
+              -MaximumRetryCount 10 `
+              -Uri "https://azuresdktooling.blob.core.windows.net/dependencies/$setupFile" `
+              -OutFile $setupFile `
+            | Wait-Process;
+
+            Start-Process -Filepath .\$setupFile -ArgumentList @("/VERYSILENT") -Wait
+          workingDirectory: $(Agent.TempDirectory)
+          displayName: Download and Install Doxygen
+
+        # Install dependencies required for build from vcpkg
+        # TODO: We should be able to generate docs without having to install these
+        # prerequisites:
+        - template: /eng/pipelines/templates/steps/vcpkg.yml
+          parameters:
+            DependenciesVariableName: VcpkgDependencies
+
+        - template: /eng/pipelines/templates/steps/cmake-build.yml
+          parameters:
+            Build: false
+            GenerateArgs: >-
+              -DINSTALL_GTEST=OFF
+              -DBUILD_TESTING=OFF
+              -DBUILD_TRANSPORT_CURL=OFF
+              -DBUILD_DOCUMENTATION=YES
+
+        - pwsh: npm install -g moxygen
+          displayName: Install Moxygen to generate markdown for docs.microsoft.com
+
+        # Generate package spec JSON files for tagging the repo
+        - ${{ each artifact in parameters.Artifacts }}:
+            - pwsh: >-
+                New-Item
+                -ItemType directory
+                -Path $(Build.ArtifactStagingDirectory)
+                -Name packages/${{ artifact.Name }}
+              displayName: Create package info artifact location
+
+            - pwsh: |
+                $outputPath = Join-Path -Path $(Build.ArtifactStagingDirectory) packages/${{ artifact.Name }}/package-info.json
+
+                $version = eng/scripts/Get-PkgVersion -ServiceDirectory ${{ parameters.ServiceDirectory }} -PackageName ${{ artifact.Path }}
+                $outputObject = @{ version = $version.ToString(); name = '${{ artifact.Name }}'; packageName = "${{ artifact.Name }}_$version"; } | ConvertTo-Json
+
+                Set-Content -Path $outputPath -Value $outputObject
+
+                # Set AZURE_SDK_VERSION for use in Doxygen generation
+                Write-Host "##vso[task.setvariable variable=AZURE_SDK_VERSION]$version"
+              displayName: Create package info JSON file
+
+            - task: Powershell@2
+              inputs:
+                targetType: inline
+                script: |
+                  # If there is no vcpkg directory skip staging the vcpkg port artifacts
+                  if (!(Test-Path build/vcpkg/ports/${{ artifact.VcpkgPortName }})) {
+                    Write-Host "No vcpkg port directory at build/vcpkg/ports/${{ artifact.VcpkgPortName }}"
+                    exit
+                  }
+
+                  New-Item `
+                    -ItemType Directory `
+                    $(Build.ArtifactStagingDirectory)/packages/${{ artifact.Name }}/vcpkg -Force
+
+                  Copy-Item -Recurse `
+                    build/vcpkg/ports/${{ artifact.VcpkgPortName }}/. `
+                    $(Build.ArtifactStagingDirectory)/packages/${{ artifact.Name }}/vcpkg/port 
+                pwsh: true
+              displayName: Copy vcpkg port files from build
+
+            - pwsh: |
+                $outputPath = Join-Path -Path $(Build.ArtifactStagingDirectory) packages/${{ artifact.Name }}
+                $changelogPath = "sdk/${{ parameters.ServiceDirectory }}/${{ artifact.Path }}/CHANGELOG.md"
+
+                if (Test-Path $changeLogPath) {
+                  Copy-Item sdk/${{ parameters.ServiceDirectory }}/${{ artifact.Path }}/CHANGELOG.md $outputPath
+                } else {
+                  Write-Warning "$changeLogPath does not exist"
+                }
+              displayName: Copy CHANGELOG.md to package artifact
+
+            - script: cmake --build . --target ${{ artifact.Name }}-docs
+              workingDirectory: build
+              displayName: Generate docs (${{ artifact.Name }}-docs)
+
+            - task: PowerShell@2
+              inputs:
+                targetType: filePath
+                filePath: eng/scripts/New-DocsMsArtifact.ps1
+                arguments: >-
+                  -ServiceDirectory ${{ parameters.ServiceDirectory }}
+                  -PackageName ${{ artifact.Name }}
+                  -TargetFolder $(Build.ArtifactStagingDirectory)/packages/${{ artifact.Name }}/docs/docs.ms
+                ignoreLASTEXITCODE: true
+                pwsh: true
+              displayName: Generate artifacts for docs.ms
+
+            - pwsh: |
+                New-Item -ItemType directory -Path $(Build.ArtifactStagingDirectory) -Name docs/${{ artifact.Name }}
+              displayName: Create doc artifact location
+
+            - task: CopyFiles@2
+              inputs:
+                sourceFolder: $(Build.ArtifactStagingDirectory)/packages/${{ artifact.Name }}
+                contents: package-info.json
+                targetFolder: build/sdk/${{ parameters.ServiceDirectory }}/${{ artifact.Path }}/docs/html
+              displayName: Copy package-info.json to documentation path
+
+            - task: CopyFiles@2
+              inputs:
+                sourceFolder: build/sdk/${{ parameters.ServiceDirectory }}/${{ artifact.Path }}/docs/html
+                targetFolder: $(Build.ArtifactStagingDirectory)/docs/${{ artifact.Name }}
+              displayName: Copy documentation to artifact staging directory
+
+        - task: PublishPipelineArtifact@1
+          inputs:
+            artifactName: packages
+            path: $(Build.ArtifactStagingDirectory)/packages
+
+        # After all docs artifacts are generated publish docs artifacts
+        - task: PublishPipelineArtifact@1
+          inputs:
+            artifactName: docs
+            path: $(Build.ArtifactStagingDirectory)/docs
+
+        - template: /eng/common/pipelines/templates/steps/eng-common-workflow-enforcer.yml
