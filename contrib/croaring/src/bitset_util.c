@@ -6,11 +6,7 @@
 
 #include <roaring/bitset_util.h>
 
-#ifdef __cplusplus
-extern "C" { namespace roaring { namespace internal {
-#endif
-
-#ifdef CROARING_IS_X64
+#ifdef IS_X64
 static uint8_t lengthTable[256] = {
     0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4,
     2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
@@ -25,7 +21,7 @@ static uint8_t lengthTable[256] = {
     4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
 #endif
 
-#ifdef CROARING_IS_X64
+#ifdef USEAVX
 ALIGNED(32)
 static uint32_t vecDecodeTable[256][8] = {
     {0, 0, 0, 0, 0, 0, 0, 0}, /* 0x00 (00000000) */
@@ -286,9 +282,9 @@ static uint32_t vecDecodeTable[256][8] = {
     {1, 2, 3, 4, 5, 6, 7, 8}  /* 0xFF (11111111) */
 };
 
-#endif  // #ifdef CROARING_IS_X64
+#endif  // #ifdef USEAVX
 
-#ifdef CROARING_IS_X64
+#ifdef IS_X64
 // same as vecDecodeTable but in 16 bits
 ALIGNED(32)
 static uint16_t vecDecodeTable_uint16[256][8] = {
@@ -552,11 +548,11 @@ static uint16_t vecDecodeTable_uint16[256][8] = {
 
 #endif
 
-#ifdef CROARING_IS_X64
-CROARING_TARGET_AVX2
-size_t bitset_extract_setbits_avx2(const uint64_t *words, size_t length,
-                                   uint32_t *out, size_t outcapacity,
-                                   uint32_t base) {
+#ifdef USEAVX
+
+size_t bitset_extract_setbits_avx2(uint64_t *array, size_t length, void *vout,
+                                   size_t outcapacity, uint32_t base) {
+    uint32_t *out = (uint32_t *)vout;
     uint32_t *initout = out;
     __m256i baseVec = _mm256_set1_epi32(base - 1);
     __m256i incVec = _mm256_set1_epi32(64);
@@ -564,7 +560,7 @@ size_t bitset_extract_setbits_avx2(const uint64_t *words, size_t length,
     uint32_t *safeout = out + outcapacity;
     size_t i = 0;
     for (; (i < length) && (out + 64 <= safeout); ++i) {
-        uint64_t w = words[i];
+        uint64_t w = array[i];
         if (w == 0) {
             baseVec = _mm256_add_epi32(baseVec, incVec);
         } else {
@@ -591,7 +587,7 @@ size_t bitset_extract_setbits_avx2(const uint64_t *words, size_t length,
     }
     base += i * 64;
     for (; (i < length) && (out < safeout); ++i) {
-        uint64_t w = words[i];
+        uint64_t w = array[i];
         while ((w != 0) && (out < safeout)) {
             uint64_t t = w & (~w + 1); // on x64, should compile to BLSI (careful: the Intel compiler seems to fail)
             int r = __builtin_ctzll(w); // on x64, should compile to TZCNT
@@ -605,14 +601,14 @@ size_t bitset_extract_setbits_avx2(const uint64_t *words, size_t length,
     }
     return out - initout;
 }
-CROARING_UNTARGET_REGION
-#endif  // CROARING_IS_X64
+#endif  // USEAVX
 
-size_t bitset_extract_setbits(const uint64_t *words, size_t length,
-                              uint32_t *out, uint32_t base) {
+size_t bitset_extract_setbits(uint64_t *bitset, size_t length, void *vout,
+                              uint32_t base) {
     int outpos = 0;
+    uint32_t *out = (uint32_t *)vout;
     for (size_t i = 0; i < length; ++i) {
-        uint64_t w = words[i];
+        uint64_t w = bitset[i];
         while (w != 0) {
             uint64_t t = w & (~w + 1); // on x64, should compile to BLSI (careful: the Intel compiler seems to fail)
             int r = __builtin_ctzll(w); // on x64, should compile to TZCNT
@@ -627,13 +623,13 @@ size_t bitset_extract_setbits(const uint64_t *words, size_t length,
     return outpos;
 }
 
-size_t bitset_extract_intersection_setbits_uint16(const uint64_t * __restrict__ words1,
-                                                  const uint64_t * __restrict__ words2,
+size_t bitset_extract_intersection_setbits_uint16(const uint64_t * __restrict__ bitset1,
+                                                  const uint64_t * __restrict__ bitset2,
                                                   size_t length, uint16_t *out,
                                                   uint16_t base) {
     int outpos = 0;
     for (size_t i = 0; i < length; ++i) {
-        uint64_t w = words1[i] & words2[i];
+        uint64_t w = bitset1[i] & bitset2[i];
         while (w != 0) {
             uint64_t t = w & (~w + 1);
             int r = __builtin_ctzll(w);
@@ -645,7 +641,7 @@ size_t bitset_extract_intersection_setbits_uint16(const uint64_t * __restrict__ 
     return outpos;
 }
 
-#ifdef CROARING_IS_X64
+#ifdef IS_X64
 /*
  * Given a bitset containing "length" 64-bit words, write out the position
  * of all the set bits to "out" as 16-bit integers, values start at "base" (can
@@ -658,8 +654,7 @@ size_t bitset_extract_intersection_setbits_uint16(const uint64_t * __restrict__ 
  *
  * This function uses SSE decoding.
  */
-CROARING_TARGET_AVX2
-size_t bitset_extract_setbits_sse_uint16(const uint64_t *words, size_t length,
+size_t bitset_extract_setbits_sse_uint16(const uint64_t *bitset, size_t length,
                                          uint16_t *out, size_t outcapacity,
                                          uint16_t base) {
     uint16_t *initout = out;
@@ -670,7 +665,7 @@ size_t bitset_extract_setbits_sse_uint16(const uint64_t *words, size_t length,
     const int numberofbytes = 2;  // process two bytes at a time
     size_t i = 0;
     for (; (i < length) && (out + numberofbytes * 8 <= safeout); ++i) {
-        uint64_t w = words[i];
+        uint64_t w = bitset[i];
         if (w == 0) {
             baseVec = _mm_add_epi16(baseVec, incVec);
         } else {
@@ -697,7 +692,7 @@ size_t bitset_extract_setbits_sse_uint16(const uint64_t *words, size_t length,
     }
     base += (uint16_t)(i * 64);
     for (; (i < length) && (out < safeout); ++i) {
-        uint64_t w = words[i];
+        uint64_t w = bitset[i];
         while ((w != 0) && (out < safeout)) {
             uint64_t t = w & (~w + 1);
             int r = __builtin_ctzll(w);
@@ -709,7 +704,6 @@ size_t bitset_extract_setbits_sse_uint16(const uint64_t *words, size_t length,
     }
     return out - initout;
 }
-CROARING_UNTARGET_REGION
 #endif
 
 /*
@@ -721,11 +715,11 @@ CROARING_UNTARGET_REGION
  *
  * Returns how many values were actually decoded.
  */
-size_t bitset_extract_setbits_uint16(const uint64_t *words, size_t length,
+size_t bitset_extract_setbits_uint16(const uint64_t *bitset, size_t length,
                                      uint16_t *out, uint16_t base) {
     int outpos = 0;
     for (size_t i = 0; i < length; ++i) {
-        uint64_t w = words[i];
+        uint64_t w = bitset[i];
         while (w != 0) {
             uint64_t t = w & (~w + 1);
             int r = __builtin_ctzll(w);
@@ -737,9 +731,9 @@ size_t bitset_extract_setbits_uint16(const uint64_t *words, size_t length,
     return outpos;
 }
 
-#if defined(CROARING_ASMBITMANIPOPTIMIZATION) && defined(CROARING_IS_X64)
+#if defined(ASMBITMANIPOPTIMIZATION)
 
-uint64_t _asm_bitset_set_list_withcard(uint64_t *words, uint64_t card,
+uint64_t bitset_set_list_withcard(void *bitset, uint64_t card,
                                   const uint16_t *list, uint64_t length) {
     uint64_t offset, load, pos;
     uint64_t shift = 6;
@@ -751,20 +745,20 @@ uint64_t _asm_bitset_set_list_withcard(uint64_t *words, uint64_t card,
         "1:\n"
         "movzwq (%[list]), %[pos]\n"
         "shrx %[shift], %[pos], %[offset]\n"
-        "mov (%[words],%[offset],8), %[load]\n"
+        "mov (%[bitset],%[offset],8), %[load]\n"
         "bts %[pos], %[load]\n"
-        "mov %[load], (%[words],%[offset],8)\n"
+        "mov %[load], (%[bitset],%[offset],8)\n"
         "sbb $-1, %[card]\n"
         "add $2, %[list]\n"
         "cmp %[list], %[end]\n"
         "jnz 1b"
         : [card] "+&r"(card), [list] "+&r"(list), [load] "=&r"(load),
           [pos] "=&r"(pos), [offset] "=&r"(offset)
-        : [end] "r"(end), [words] "r"(words), [shift] "r"(shift));
+        : [end] "r"(end), [bitset] "r"(bitset), [shift] "r"(shift));
     return card;
 }
 
-void _asm_bitset_set_list(uint64_t *words, const uint16_t *list, uint64_t length) {
+void bitset_set_list(void *bitset, const uint16_t *list, uint64_t length) {
     uint64_t pos;
     const uint16_t *end = list + length;
 
@@ -775,51 +769,51 @@ void _asm_bitset_set_list(uint64_t *words, const uint16_t *list, uint64_t length
         pos = list[0];
         __asm volatile(
             "shrx %[shift], %[pos], %[offset]\n"
-            "mov (%[words],%[offset],8), %[load]\n"
+            "mov (%[bitset],%[offset],8), %[load]\n"
             "bts %[pos], %[load]\n"
-            "mov %[load], (%[words],%[offset],8)"
+            "mov %[load], (%[bitset],%[offset],8)"
             : [load] "=&r"(load), [offset] "=&r"(offset)
-            : [words] "r"(words), [shift] "r"(shift), [pos] "r"(pos));
+            : [bitset] "r"(bitset), [shift] "r"(shift), [pos] "r"(pos));
         pos = list[1];
         __asm volatile(
             "shrx %[shift], %[pos], %[offset]\n"
-            "mov (%[words],%[offset],8), %[load]\n"
+            "mov (%[bitset],%[offset],8), %[load]\n"
             "bts %[pos], %[load]\n"
-            "mov %[load], (%[words],%[offset],8)"
+            "mov %[load], (%[bitset],%[offset],8)"
             : [load] "=&r"(load), [offset] "=&r"(offset)
-            : [words] "r"(words), [shift] "r"(shift), [pos] "r"(pos));
+            : [bitset] "r"(bitset), [shift] "r"(shift), [pos] "r"(pos));
         pos = list[2];
         __asm volatile(
             "shrx %[shift], %[pos], %[offset]\n"
-            "mov (%[words],%[offset],8), %[load]\n"
+            "mov (%[bitset],%[offset],8), %[load]\n"
             "bts %[pos], %[load]\n"
-            "mov %[load], (%[words],%[offset],8)"
+            "mov %[load], (%[bitset],%[offset],8)"
             : [load] "=&r"(load), [offset] "=&r"(offset)
-            : [words] "r"(words), [shift] "r"(shift), [pos] "r"(pos));
+            : [bitset] "r"(bitset), [shift] "r"(shift), [pos] "r"(pos));
         pos = list[3];
         __asm volatile(
             "shrx %[shift], %[pos], %[offset]\n"
-            "mov (%[words],%[offset],8), %[load]\n"
+            "mov (%[bitset],%[offset],8), %[load]\n"
             "bts %[pos], %[load]\n"
-            "mov %[load], (%[words],%[offset],8)"
+            "mov %[load], (%[bitset],%[offset],8)"
             : [load] "=&r"(load), [offset] "=&r"(offset)
-            : [words] "r"(words), [shift] "r"(shift), [pos] "r"(pos));
+            : [bitset] "r"(bitset), [shift] "r"(shift), [pos] "r"(pos));
     }
 
     while (list != end) {
         pos = list[0];
         __asm volatile(
             "shrx %[shift], %[pos], %[offset]\n"
-            "mov (%[words],%[offset],8), %[load]\n"
+            "mov (%[bitset],%[offset],8), %[load]\n"
             "bts %[pos], %[load]\n"
-            "mov %[load], (%[words],%[offset],8)"
+            "mov %[load], (%[bitset],%[offset],8)"
             : [load] "=&r"(load), [offset] "=&r"(offset)
-            : [words] "r"(words), [shift] "r"(shift), [pos] "r"(pos));
+            : [bitset] "r"(bitset), [shift] "r"(shift), [pos] "r"(pos));
         list++;
     }
 }
 
-uint64_t _asm_bitset_clear_list(uint64_t *words, uint64_t card, const uint16_t *list,
+uint64_t bitset_clear_list(void *bitset, uint64_t card, const uint16_t *list,
                            uint64_t length) {
     uint64_t offset, load, pos;
     uint64_t shift = 6;
@@ -830,96 +824,23 @@ uint64_t _asm_bitset_clear_list(uint64_t *words, uint64_t card, const uint16_t *
         "1:\n"
         "movzwq (%[list]), %[pos]\n"
         "shrx %[shift], %[pos], %[offset]\n"
-        "mov (%[words],%[offset],8), %[load]\n"
+        "mov (%[bitset],%[offset],8), %[load]\n"
         "btr %[pos], %[load]\n"
-        "mov %[load], (%[words],%[offset],8)\n"
+        "mov %[load], (%[bitset],%[offset],8)\n"
         "sbb $0, %[card]\n"
         "add $2, %[list]\n"
         "cmp %[list], %[end]\n"
         "jnz 1b"
         : [card] "+&r"(card), [list] "+&r"(list), [load] "=&r"(load),
           [pos] "=&r"(pos), [offset] "=&r"(offset)
-        : [end] "r"(end), [words] "r"(words), [shift] "r"(shift)
+        : [end] "r"(end), [bitset] "r"(bitset), [shift] "r"(shift)
         :
         /* clobbers */ "memory");
     return card;
 }
 
-uint64_t _scalar_bitset_clear_list(uint64_t *words, uint64_t card, const uint16_t *list,
-                           uint64_t length) {
-    uint64_t offset, load, newload, pos, index;
-    const uint16_t *end = list + length;
-    while (list != end) {
-        pos = *(const uint16_t *)list;
-        offset = pos >> 6;
-        index = pos % 64;
-        load = words[offset];
-        newload = load & ~(UINT64_C(1) << index);
-        card -= (load ^ newload) >> index;
-        words[offset] = newload;
-        list++;
-    }
-    return card;
-}
-
-uint64_t _scalar_bitset_set_list_withcard(uint64_t *words, uint64_t card,
-                                  const uint16_t *list, uint64_t length) {
-    uint64_t offset, load, newload, pos, index;
-    const uint16_t *end = list + length;
-    while (list != end) {
-        pos = *list;
-        offset = pos >> 6;
-        index = pos % 64;
-        load = words[offset];
-        newload = load | (UINT64_C(1) << index);
-        card += (load ^ newload) >> index;
-        words[offset] = newload;
-        list++;
-    }
-    return card;
-}
-
-void _scalar_bitset_set_list(uint64_t *words, const uint16_t *list, uint64_t length) {
-    uint64_t offset, load, newload, pos, index;
-    const uint16_t *end = list + length;
-    while (list != end) {
-        pos = *list;
-        offset = pos >> 6;
-        index = pos % 64;
-        load = words[offset];
-        newload = load | (UINT64_C(1) << index);
-        words[offset] = newload;
-        list++;
-    }
-}
-
-uint64_t bitset_clear_list(uint64_t *words, uint64_t card, const uint16_t *list,
-                           uint64_t length) {
-    if( croaring_avx2() ) {
-        return _asm_bitset_clear_list(words, card, list, length);
-    } else {
-        return _scalar_bitset_clear_list(words, card, list, length);
-    }
-}
-
-uint64_t bitset_set_list_withcard(uint64_t *words, uint64_t card,
-                                  const uint16_t *list, uint64_t length) {
-    if( croaring_avx2() ) {
-        return _asm_bitset_set_list_withcard(words, card, list, length);
-    } else {
-        return _scalar_bitset_set_list_withcard(words, card, list, length);
-    }
-}
-
-void bitset_set_list(uint64_t *words, const uint16_t *list, uint64_t length) {
-    if( croaring_avx2() ) {
-        _asm_bitset_set_list(words, list, length);
-    } else {
-        _scalar_bitset_set_list(words, list, length);
-    }
-}
 #else
-uint64_t bitset_clear_list(uint64_t *words, uint64_t card, const uint16_t *list,
+uint64_t bitset_clear_list(void *bitset, uint64_t card, const uint16_t *list,
                            uint64_t length) {
     uint64_t offset, load, newload, pos, index;
     const uint16_t *end = list + length;
@@ -927,42 +848,42 @@ uint64_t bitset_clear_list(uint64_t *words, uint64_t card, const uint16_t *list,
         pos = *(const uint16_t *)list;
         offset = pos >> 6;
         index = pos % 64;
-        load = words[offset];
+        load = ((uint64_t *)bitset)[offset];
         newload = load & ~(UINT64_C(1) << index);
         card -= (load ^ newload) >> index;
-        words[offset] = newload;
+        ((uint64_t *)bitset)[offset] = newload;
         list++;
     }
     return card;
 }
 
-uint64_t bitset_set_list_withcard(uint64_t *words, uint64_t card,
+uint64_t bitset_set_list_withcard(void *bitset, uint64_t card,
                                   const uint16_t *list, uint64_t length) {
     uint64_t offset, load, newload, pos, index;
     const uint16_t *end = list + length;
     while (list != end) {
-        pos = *list;
+        pos = *(const uint16_t *)list;
         offset = pos >> 6;
         index = pos % 64;
-        load = words[offset];
+        load = ((uint64_t *)bitset)[offset];
         newload = load | (UINT64_C(1) << index);
         card += (load ^ newload) >> index;
-        words[offset] = newload;
+        ((uint64_t *)bitset)[offset] = newload;
         list++;
     }
     return card;
 }
 
-void bitset_set_list(uint64_t *words, const uint16_t *list, uint64_t length) {
+void bitset_set_list(void *bitset, const uint16_t *list, uint64_t length) {
     uint64_t offset, load, newload, pos, index;
     const uint16_t *end = list + length;
     while (list != end) {
-        pos = *list;
+        pos = *(const uint16_t *)list;
         offset = pos >> 6;
         index = pos % 64;
-        load = words[offset];
+        load = ((uint64_t *)bitset)[offset];
         newload = load | (UINT64_C(1) << index);
-        words[offset] = newload;
+        ((uint64_t *)bitset)[offset] = newload;
         list++;
     }
 }
@@ -972,39 +893,35 @@ void bitset_set_list(uint64_t *words, const uint16_t *list, uint64_t length) {
 /* flip specified bits */
 /* TODO: consider whether worthwhile to make an asm version */
 
-uint64_t bitset_flip_list_withcard(uint64_t *words, uint64_t card,
+uint64_t bitset_flip_list_withcard(void *bitset, uint64_t card,
                                    const uint16_t *list, uint64_t length) {
     uint64_t offset, load, newload, pos, index;
     const uint16_t *end = list + length;
     while (list != end) {
-        pos = *list;
+        pos = *(const uint16_t *)list;
         offset = pos >> 6;
         index = pos % 64;
-        load = words[offset];
+        load = ((uint64_t *)bitset)[offset];
         newload = load ^ (UINT64_C(1) << index);
         // todo: is a branch here all that bad?
         card +=
             (1 - 2 * (((UINT64_C(1) << index) & load) >> index));  // +1 or -1
-        words[offset] = newload;
+        ((uint64_t *)bitset)[offset] = newload;
         list++;
     }
     return card;
 }
 
-void bitset_flip_list(uint64_t *words, const uint16_t *list, uint64_t length) {
+void bitset_flip_list(void *bitset, const uint16_t *list, uint64_t length) {
     uint64_t offset, load, newload, pos, index;
     const uint16_t *end = list + length;
     while (list != end) {
-        pos = *list;
+        pos = *(const uint16_t *)list;
         offset = pos >> 6;
         index = pos % 64;
-        load = words[offset];
+        load = ((uint64_t *)bitset)[offset];
         newload = load ^ (UINT64_C(1) << index);
-        words[offset] = newload;
+        ((uint64_t *)bitset)[offset] = newload;
         list++;
     }
 }
-
-#ifdef __cplusplus
-} } }  // extern "C" { namespace roaring { namespace internal {
-#endif

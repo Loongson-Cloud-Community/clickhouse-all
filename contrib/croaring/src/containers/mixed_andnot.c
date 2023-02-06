@@ -13,10 +13,6 @@
 #include <roaring/containers/mixed_andnot.h>
 #include <roaring/containers/perfparameters.h>
 
-#ifdef __cplusplus
-extern "C" { namespace roaring { namespace internal {
-#endif
-
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst, a valid array container that could be the same as dst.*/
 void array_bitset_container_andnot(const array_container_t *src_1,
@@ -49,15 +45,13 @@ void array_bitset_container_iandnot(array_container_t *src_1,
  * Return true for a bitset result; false for array
  */
 
-bool bitset_array_container_andnot(
-    const bitset_container_t *src_1, const array_container_t *src_2,
-    container_t **dst
-){
+bool bitset_array_container_andnot(const bitset_container_t *src_1,
+                                   const array_container_t *src_2, void **dst) {
     // Java did this directly, but we have option of asm or avx
     bitset_container_t *result = bitset_container_create();
     bitset_container_copy(src_1, result);
     result->cardinality =
-        (int32_t)bitset_clear_list(result->words, (uint64_t)result->cardinality,
+        (int32_t)bitset_clear_list(result->array, (uint64_t)result->cardinality,
                                    src_2->array, (uint64_t)src_2->cardinality);
 
     // do required type conversions.
@@ -77,13 +71,12 @@ bool bitset_array_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-bool bitset_array_container_iandnot(
-    bitset_container_t *src_1, const array_container_t *src_2,
-    container_t **dst
-){
+bool bitset_array_container_iandnot(bitset_container_t *src_1,
+                                    const array_container_t *src_2,
+                                    void **dst) {
     *dst = src_1;
     src_1->cardinality =
-        (int32_t)bitset_clear_list(src_1->words, (uint64_t)src_1->cardinality,
+        (int32_t)bitset_clear_list(src_1->array, (uint64_t)src_1->cardinality,
                                    src_2->array, (uint64_t)src_2->cardinality);
 
     if (src_1->cardinality <= DEFAULT_MAX_SIZE) {
@@ -101,10 +94,8 @@ bool bitset_array_container_iandnot(
  * result true) or an array container.
  */
 
-bool run_bitset_container_andnot(
-    const run_container_t *src_1, const bitset_container_t *src_2,
-    container_t **dst
-){
+bool run_bitset_container_andnot(const run_container_t *src_1,
+                                 const bitset_container_t *src_2, void **dst) {
     // follows the Java implementation as of June 2016
     int card = run_container_cardinality(src_1);
     if (card <= DEFAULT_MAX_SIZE) {
@@ -132,11 +123,11 @@ bool run_bitset_container_andnot(
 
             uint32_t start = rle.value;
             uint32_t end = start + rle.length + 1;
-            bitset_reset_range(answer->words, last_pos, start);
-            bitset_flip_range(answer->words, start, end);
+            bitset_reset_range(answer->array, last_pos, start);
+            bitset_flip_range(answer->array, start, end);
             last_pos = end;
         }
-        bitset_reset_range(answer->words, last_pos, (uint32_t)(1 << 16));
+        bitset_reset_range(answer->array, last_pos, (uint32_t)(1 << 16));
 
         answer->cardinality = bitset_container_compute_cardinality(answer);
 
@@ -157,10 +148,8 @@ bool run_bitset_container_andnot(
  * result true) or an array container.
  */
 
-bool run_bitset_container_iandnot(
-    run_container_t *src_1, const bitset_container_t *src_2,
-    container_t **dst
-){
+bool run_bitset_container_iandnot(run_container_t *src_1,
+                                  const bitset_container_t *src_2, void **dst) {
     // dummy implementation
     bool ans = run_bitset_container_andnot(src_1, src_2, dst);
     run_container_free(src_1);
@@ -174,17 +163,15 @@ bool run_bitset_container_iandnot(
  * result true) or an array container.
  */
 
-bool bitset_run_container_andnot(
-    const bitset_container_t *src_1, const run_container_t *src_2,
-    container_t **dst
-){
+bool bitset_run_container_andnot(const bitset_container_t *src_1,
+                                 const run_container_t *src_2, void **dst) {
     // follows Java implementation
     bitset_container_t *result = bitset_container_create();
 
     bitset_container_copy(src_1, result);
     for (int32_t rlepos = 0; rlepos < src_2->n_runs; ++rlepos) {
         rle16_t rle = src_2->runs[rlepos];
-        bitset_reset_range(result->words, rle.value,
+        bitset_reset_range(result->array, rle.value,
                            rle.value + rle.length + UINT32_C(1));
     }
     result->cardinality = bitset_container_compute_cardinality(result);
@@ -205,15 +192,13 @@ bool bitset_run_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-bool bitset_run_container_iandnot(
-    bitset_container_t *src_1, const run_container_t *src_2,
-    container_t **dst
-){
+bool bitset_run_container_iandnot(bitset_container_t *src_1,
+                                  const run_container_t *src_2, void **dst) {
     *dst = src_1;
 
     for (int32_t rlepos = 0; rlepos < src_2->n_runs; ++rlepos) {
         rle16_t rle = src_2->runs[rlepos];
-        bitset_reset_range(src_1->words, rle.value,
+        bitset_reset_range(src_1->array, rle.value,
                            rle.value + rle.length + UINT32_C(1));
     }
     src_1->cardinality = bitset_container_compute_cardinality(src_1);
@@ -234,16 +219,16 @@ bool bitset_run_container_iandnot(
  * to avoid advanceUntil?
  */
 
-static int run_array_array_subtract(const run_container_t *rc,
+static int run_array_array_subtract(const run_container_t *r,
                                     const array_container_t *a_in,
                                     array_container_t *a_out) {
     int out_card = 0;
     int32_t in_array_pos =
         -1;  // since advanceUntil always assumes we start the search AFTER this
 
-    for (int rlepos = 0; rlepos < rc->n_runs; rlepos++) {
-        int32_t start = rc->runs[rlepos].value;
-        int32_t end = start + rc->runs[rlepos].length + 1;
+    for (int rlepos = 0; rlepos < r->n_runs; rlepos++) {
+        int32_t start = r->runs[rlepos].value;
+        int32_t end = start + r->runs[rlepos].length + 1;
 
         in_array_pos = advanceUntil(a_in->array, in_array_pos,
                                     a_in->cardinality, (uint16_t)start);
@@ -278,10 +263,8 @@ static int run_array_array_subtract(const run_container_t *rc,
  * can become any type of container.
  */
 
-int run_array_container_andnot(
-    const run_container_t *src_1, const array_container_t *src_2,
-    container_t **dst
-){
+int run_array_container_andnot(const run_container_t *src_1,
+                               const array_container_t *src_2, void **dst) {
     // follows the Java impl as of June 2016
 
     int card = run_container_cardinality(src_1);
@@ -290,7 +273,7 @@ int run_array_container_andnot(
     if (card <= arbitrary_threshold) {
         if (src_2->cardinality == 0) {
             *dst = run_container_clone(src_1);
-            return RUN_CONTAINER_TYPE;
+            return RUN_CONTAINER_TYPE_CODE;
         }
         // Java's "lazyandNot.toEfficientContainer" thing
         run_container_t *answer = run_container_create_given_capacity(
@@ -307,7 +290,8 @@ int run_array_container_andnot(
             if (end <= xstart) {
                 // output the first run
                 answer->runs[answer->n_runs++] =
-                    MAKE_RLE16(start, end - start - 1);
+                    (rle16_t){.value = (uint16_t)start,
+                              .length = (uint16_t)(end - start - 1)};
                 rlepos++;
                 if (rlepos < src_1->n_runs) {
                     start = src_1->runs[rlepos].value;
@@ -322,7 +306,8 @@ int run_array_container_andnot(
             } else {
                 if (start < xstart) {
                     answer->runs[answer->n_runs++] =
-                        MAKE_RLE16(start, xstart - start - 1);
+                        (rle16_t){.value = (uint16_t)start,
+                                  .length = (uint16_t)(xstart - start - 1)};
                 }
                 if (xstart + 1 < end) {
                     start = xstart + 1;
@@ -336,7 +321,9 @@ int run_array_container_andnot(
             }
         }
         if (rlepos < src_1->n_runs) {
-            answer->runs[answer->n_runs++] = MAKE_RLE16(start, end - start - 1);
+            answer->runs[answer->n_runs++] =
+                (rle16_t){.value = (uint16_t)start,
+                          .length = (uint16_t)(end - start - 1)};
             rlepos++;
             if (rlepos < src_1->n_runs) {
                 memcpy(answer->runs + answer->n_runs, src_1->runs + rlepos,
@@ -357,12 +344,12 @@ int run_array_container_andnot(
         // difference
         ac->cardinality = run_array_array_subtract(src_1, src_2, ac);
         *dst = ac;
-        return ARRAY_CONTAINER_TYPE;
+        return ARRAY_CONTAINER_TYPE_CODE;
     }
     bitset_container_t *ans = bitset_container_from_run(src_1);
     bool result_is_bitset = bitset_array_container_iandnot(ans, src_2, dst);
-    return (result_is_bitset ? BITSET_CONTAINER_TYPE
-                             : ARRAY_CONTAINER_TYPE);
+    return (result_is_bitset ? BITSET_CONTAINER_TYPE_CODE
+                             : ARRAY_CONTAINER_TYPE_CODE);
 }
 
 /* Compute the andnot of src_1 and src_2 and write the result to
@@ -372,10 +359,8 @@ int run_array_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-int run_array_container_iandnot(
-    run_container_t *src_1, const array_container_t *src_2,
-    container_t **dst
-){
+int run_array_container_iandnot(run_container_t *src_1,
+                                const array_container_t *src_2, void **dst) {
     // dummy implementation same as June 2016 Java
     int ans = run_array_container_andnot(src_1, src_2, dst);
     run_container_free(src_1);
@@ -439,10 +424,8 @@ void array_run_container_iandnot(array_container_t *src_1,
  * can become any kind of container.
  */
 
-int run_run_container_andnot(
-    const run_container_t *src_1, const run_container_t *src_2,
-    container_t **dst
-){
+int run_run_container_andnot(const run_container_t *src_1,
+                             const run_container_t *src_2, void **dst) {
     run_container_t *ans = run_container_create();
     run_container_andnot(src_1, src_2, ans);
     uint8_t typecode_after;
@@ -457,10 +440,8 @@ int run_run_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-int run_run_container_iandnot(
-    run_container_t *src_1, const run_container_t *src_2,
-    container_t **dst
-){
+int run_run_container_iandnot(run_container_t *src_1,
+                              const run_container_t *src_2, void **dst) {
     // following Java impl as of June 2016 (dummy)
     int ans = run_run_container_andnot(src_1, src_2, dst);
     run_container_free(src_1);
@@ -489,10 +470,9 @@ void array_array_container_iandnot(array_container_t *src_1,
  * "dst is a bitset"
  */
 
-bool bitset_bitset_container_andnot(
-    const bitset_container_t *src_1, const bitset_container_t *src_2,
-    container_t **dst
-){
+bool bitset_bitset_container_andnot(const bitset_container_t *src_1,
+                                    const bitset_container_t *src_2,
+                                    void **dst) {
     bitset_container_t *ans = bitset_container_create();
     int card = bitset_container_andnot(src_1, src_2, ans);
     if (card <= DEFAULT_MAX_SIZE) {
@@ -512,10 +492,9 @@ bool bitset_bitset_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-bool bitset_bitset_container_iandnot(
-    bitset_container_t *src_1, const bitset_container_t *src_2,
-    container_t **dst
-){
+bool bitset_bitset_container_iandnot(bitset_container_t *src_1,
+                                     const bitset_container_t *src_2,
+                                     void **dst) {
     int card = bitset_container_andnot(src_1, src_2, src_1);
     if (card <= DEFAULT_MAX_SIZE) {
         *dst = array_container_from_bitset(src_1);
@@ -526,7 +505,3 @@ bool bitset_bitset_container_iandnot(
         return true;
     }
 }
-
-#ifdef __cplusplus
-} } }  // extern "C" { namespace roaring { namespace internal {
-#endif

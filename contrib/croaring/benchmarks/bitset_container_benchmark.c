@@ -11,14 +11,14 @@
 const int repeat = 500;
 
 
-#if defined(CROARING_IS_X64) && !(defined(_MSC_VER) && !defined(__clang__))
+#if defined(IS_X64) && !(defined(_MSC_VER) && !defined(__clang__))
 // flushes the array of words from cache
 void bitset_cache_flush(bitset_container_t* B) {
     const int32_t CACHELINESIZE =
         computecacheline();  // 64 bytes per cache line
     for (int32_t k = 0; k < BITSET_CONTAINER_SIZE_IN_WORDS;
          k += CACHELINESIZE / (int32_t)sizeof(uint64_t)) {
-        __builtin_ia32_clflush(B->words + k);
+        __builtin_ia32_clflush(B->array + k);
     }
 }
 #else
@@ -28,7 +28,7 @@ void bitset_cache_flush(bitset_container_t* B) { (void)B; }
 
 // tries to put array of words in cache
 void bitset_cache_prefetch(bitset_container_t* B) {
-#ifdef CROARING_IS_X64
+#ifdef IS_X64
     const int32_t CACHELINESIZE =
         computecacheline();  // 64 bytes per cache line
 #else
@@ -37,7 +37,7 @@ void bitset_cache_prefetch(bitset_container_t* B) {
 #if !(defined(_MSC_VER) && !defined(__clang__))
     for (int32_t k = 0; k < BITSET_CONTAINER_SIZE_IN_WORDS;
          k += CACHELINESIZE / (int32_t)sizeof(uint64_t)) {
-        __builtin_prefetch(B->words + k);
+        __builtin_prefetch(B->array + k);
     }
 #endif
 }

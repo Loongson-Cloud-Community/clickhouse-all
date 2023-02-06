@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
 #include <roaring/roaring.h>
-#include <roaring/misc/configreport.h>
 #include "benchmark.h"
 #include "numbersfromtextfiles.h"
 
@@ -43,7 +42,6 @@ static void printusage(char *command) {
 #define KWHT "\x1B[37m"
 
 int main(int argc, char **argv) {
-    tellmeall();
     int c;
     const char *extension = ".txt";
     bool copy_on_write = false;
@@ -160,9 +158,9 @@ int main(int argc, char **argv) {
     size_t total_count = 0;
     RDTSC_START(cycles_start);
     for (size_t i = 0; i < count; ++i) {
-        roaring_bitmap_t *r = bitmaps[i];
+        roaring_bitmap_t *ra = bitmaps[i];
         roaring_uint32_iterator_t j;
-        roaring_init_iterator(r, &j);
+        roaring_init_iterator(ra, &j);
         while (j.has_value) {
             total_count++;
             roaring_advance_uint32_iterator(&j);

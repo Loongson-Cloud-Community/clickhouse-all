@@ -4,22 +4,17 @@
 
 #include <type_traits>
 #include <assert.h>
+#include <roaring/roaring.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <iostream>
-#include <roaring/misc/configreport.h>
-
-#include <roaring/roaring.h>  // access to pure C exported API for testing
-
 #include "roaring.hh"
-using roaring::Roaring;  // the C++ wrapper class
-
 #include "roaring64map.hh"
-using roaring::Roaring64Map;  // C++ class extended for 64-bit numbers
-
+extern "C" {
 #include "test.h"
+}
 
 
 static_assert(std::is_nothrow_move_constructible<Roaring>::value,
@@ -36,7 +31,7 @@ bool roaring_iterator_sumall64(uint64_t value, void *param) {
 }
 
 
-DEFINE_TEST(serial_test) {
+void serial_test(void **) {
   uint32_t values[] = {5, 2, 3, 4, 1};
   Roaring r1(sizeof(values)/sizeof(uint32_t), values);
   uint32_t serializesize = r1.getSizeInBytes();
@@ -479,27 +474,27 @@ void test_example_cpp_64(bool copy_on_write) {
     }
 }
 
-DEFINE_TEST(test_example_true) { test_example(true); }
+void test_example_true(void **) { test_example(true); }
 
-DEFINE_TEST(test_example_false) { test_example(false); }
+void test_example_false(void **) { test_example(false); }
 
-DEFINE_TEST(test_example_cpp_true) { test_example_cpp(true); }
+void test_example_cpp_true(void **) { test_example_cpp(true); }
 
-DEFINE_TEST(test_example_cpp_false) { test_example_cpp(false); }
+void test_example_cpp_false(void **) { test_example_cpp(false); }
 
-DEFINE_TEST(test_example_cpp_64_true) { test_example_cpp_64(true); }
+void test_example_cpp_64_true(void **) { test_example_cpp_64(true); }
 
-DEFINE_TEST(test_example_cpp_64_false) { test_example_cpp_64(false); }
+void test_example_cpp_64_false(void **) { test_example_cpp_64(false); }
 
-DEFINE_TEST(test_run_compression_cpp_64_true) { test_run_compression_cpp_64(true); }
+void test_run_compression_cpp_64_true(void **) { test_run_compression_cpp_64(true); }
 
-DEFINE_TEST(test_run_compression_cpp_64_false) { test_run_compression_cpp_64(false); }
+void test_run_compression_cpp_64_false(void **) { test_run_compression_cpp_64(false); }
 
-DEFINE_TEST(test_run_compression_cpp_true) { test_run_compression_cpp(true); }
+void test_run_compression_cpp_true(void **) { test_run_compression_cpp(true); }
 
-DEFINE_TEST(test_run_compression_cpp_false) { test_run_compression_cpp(false); }
+void test_run_compression_cpp_false(void **) { test_run_compression_cpp(false); }
 
-DEFINE_TEST(test_cpp_add_remove_checked) {
+void test_cpp_add_remove_checked(void **) {
     Roaring roaring;
     uint32_t values[4] = { 123, 9999, 0xFFFFFFF7, 0xFFFFFFFF};
     for (int i = 0; i < 4; ++i) {
@@ -513,7 +508,7 @@ DEFINE_TEST(test_cpp_add_remove_checked) {
     assert_true(roaring.isEmpty());
 }
 
-DEFINE_TEST(test_cpp_add_remove_checked_64) {
+void test_cpp_add_remove_checked_64(void **) {
     Roaring64Map roaring;
 
     uint32_t values32[4] = { 123, 9999, 0xFFFFFFF7, 0xFFFFFFFF};
@@ -538,7 +533,7 @@ DEFINE_TEST(test_cpp_add_remove_checked_64) {
     assert_true(roaring.isEmpty());
 }
 
-DEFINE_TEST(test_cpp_clear_64) {
+void test_cpp_clear_64(void **) {
     Roaring64Map roaring;
 
     uint64_t values64[4] = { 123ULL, 0xA00000000AULL, 0xAFFFFFFF7ULL, 0xFFFFFFFFFULL};
@@ -547,11 +542,11 @@ DEFINE_TEST(test_cpp_clear_64) {
     }
 
 	roaring.clear();
-
+	
     assert_true(roaring.isEmpty());
 }
 
-DEFINE_TEST(test_cpp_move_64) {
+void test_cpp_move_64(void **) {
     Roaring64Map roaring;
 
     uint64_t values64[4] = { 123ULL, 0xA00000000AULL, 0xAFFFFFFF7ULL, 0xFFFFFFFFFULL};
@@ -567,7 +562,7 @@ DEFINE_TEST(test_cpp_move_64) {
 	assert_false(i.move(0xFFFFFFFFFFULL));
 }
 
-DEFINE_TEST(test_cpp_bidirectional_iterator_64) {
+void test_cpp_bidirectional_iterator_64(void **) {
     Roaring64Map roaring;
 
     uint64_t values64[4] = { 123ULL, 0xA00000000AULL, 0xAFFFFFFF7ULL, 0xFFFFFFFFFULL};
@@ -582,7 +577,7 @@ DEFINE_TEST(test_cpp_bidirectional_iterator_64) {
 	assert_true(*i++ == 0xFFFFFFFFFULL);
 	assert_true(*i++ == 0xA00000000AULL);
 	assert_true(i == roaring.end());
-	assert_true(*--i == 0xA00000000AULL);
+	assert_true(*--i == 0xA00000000AULL);	
 	assert_true(*--i == 0xFFFFFFFFFULL);
 	assert_true(*--i == 0xAFFFFFFF7ULL);
 	assert_true(*--i == 123ULL);
@@ -597,7 +592,6 @@ DEFINE_TEST(test_cpp_bidirectional_iterator_64) {
 }
 
 int main() {
-    roaring::misc::tellmeall();
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(serial_test),
         cmocka_unit_test(test_example_true),

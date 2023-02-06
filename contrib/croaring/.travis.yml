@@ -1,6 +1,3 @@
-arch:
-  - amd64
-  - ppc64le
 language: c
 sudo: true
 compiler:
@@ -26,25 +23,12 @@ matrix:
   include: # ordered by execution time, slowest first
     - env: CONF=armhf
     - env: CONF=aarch64
+    - env: CONF=sani
+    - env: CONF=saninox64
     - env: CONF=debug
     - env: CONF=debugnox64
     - env: CONF=release
     - env: CONF=releasenox64
     - env: CONF=amalgamation
-    # power jobs added.
-    - env: CONF=armhf
-      arch: ppc64le
-    - env: CONF=aarch64
-      arch: ppc64le    
-    - env: CONF=debug
-      arch: ppc64le      
-    - env: CONF=debugnox64
-      arch: ppc64le    
-    - env: CONF=release
-      arch: ppc64le
-    - env: CONF=releasenox64
-      arch: ppc64le
-    - env: CONF=amalgamation
-      arch: ppc64le
-    script: tools/travis.sh $CONF
+script: tools/travis.sh $CONF
 

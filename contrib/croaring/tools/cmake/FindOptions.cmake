@@ -12,17 +12,22 @@ if(ROARING_SANITIZE)
   endif()
 endif()
 
-if((NOT MSVC) AND ROARING_ARCH)
+## -march=native is not supported on some platforms
+if(NOT MSVC)
+
+if(NOT ROARING_DISABLE_NATIVE)
 set(OPT_FLAGS "-march=${ROARING_ARCH}")
 endif()
+endif()
+
 if(ROARING_DISABLE_X64)
   # we can manually disable any optimization for x64
-  set (OPT_FLAGS "${OPT_FLAGS} -DROARING_DISABLE_X64" )
+  set (OPT_FLAGS "${OPT_FLAGS} -DDISABLE_X64" )
 endif()
 if(ROARING_DISABLE_AVX)
-   # we can manually disable AVX by defining DISABLEAVX
-   set (OPT_FLAGS "${OPT_FLAGS} -DROARING_DISABLE_AVX" )
- endif()
+  # we can manually disable AVX by defining DISABLEAVX
+  set (OPT_FLAGS "${OPT_FLAGS} -DDISABLEAVX" )
+endif()
 if(ROARING_DISABLE_NEON)
   set (OPT_FLAGS "${OPT_FLAGS} -DDISABLENEON" )
 endif()
@@ -58,9 +63,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXXSTD_FLAGS} ${OPT_FLAGS} ${INCLUDE_F
 if(MSVC)
 add_definitions( "/W3 /D_CRT_SECURE_NO_WARNINGS /wd4005 /wd4996 /wd4267 /wd4244  /wd4113 /nologo")
 endif()
-if(MSVC_VERSION GREATER 1910)
-  add_definitions("/permissive-")
-endif()
+
 if(ROARING_LINK_STATIC)
   if(NOT MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "-static")

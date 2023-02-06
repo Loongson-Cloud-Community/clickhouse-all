@@ -8,10 +8,6 @@
 #include <roaring/containers/bitset.h>
 #include <roaring/containers/run.h>
 
-#ifdef __cplusplus
-extern "C" { namespace roaring { namespace internal {
-#endif
-
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst, a valid array container that could be the same as dst.*/
 void array_bitset_container_andnot(const array_container_t *src_1,
@@ -29,9 +25,8 @@ void array_bitset_container_iandnot(array_container_t *src_1,
  * Return true for a bitset result; false for array
  */
 
-bool bitset_array_container_andnot(
-        const bitset_container_t *src_1, const array_container_t *src_2,
-        container_t **dst);
+bool bitset_array_container_andnot(const bitset_container_t *src_1,
+                                   const array_container_t *src_2, void **dst);
 
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst (which has no container initially).  It will modify src_1
@@ -40,9 +35,8 @@ bool bitset_array_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-bool bitset_array_container_iandnot(
-        bitset_container_t *src_1, const array_container_t *src_2,
-        container_t **dst);
+bool bitset_array_container_iandnot(bitset_container_t *src_1,
+                                    const array_container_t *src_2, void **dst);
 
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst. Result may be either a bitset or an array container
@@ -51,9 +45,8 @@ bool bitset_array_container_iandnot(
  * result true) or an array container.
  */
 
-bool run_bitset_container_andnot(
-        const run_container_t *src_1, const bitset_container_t *src_2,
-        container_t **dst);
+bool run_bitset_container_andnot(const run_container_t *src_1,
+                                 const bitset_container_t *src_2, void **dst);
 
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst. Result may be either a bitset or an array container
@@ -62,9 +55,8 @@ bool run_bitset_container_andnot(
  * result true) or an array container.
  */
 
-bool run_bitset_container_iandnot(
-        run_container_t *src_1, const bitset_container_t *src_2,
-        container_t **dst);
+bool run_bitset_container_iandnot(run_container_t *src_1,
+                                  const bitset_container_t *src_2, void **dst);
 
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst. Result may be either a bitset or an array container
@@ -73,9 +65,8 @@ bool run_bitset_container_iandnot(
  * result true) or an array container.
  */
 
-bool bitset_run_container_andnot(
-        const bitset_container_t *src_1, const run_container_t *src_2,
-        container_t **dst);
+bool bitset_run_container_andnot(const bitset_container_t *src_1,
+                                 const run_container_t *src_2, void **dst);
 
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst (which has no container initially).  It will modify src_1
@@ -84,17 +75,15 @@ bool bitset_run_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-bool bitset_run_container_iandnot(
-        bitset_container_t *src_1, const run_container_t *src_2,
-        container_t **dst);
+bool bitset_run_container_iandnot(bitset_container_t *src_1,
+                                  const run_container_t *src_2, void **dst);
 
 /* dst does not indicate a valid container initially.  Eventually it
  * can become any type of container.
  */
 
-int run_array_container_andnot(
-        const run_container_t *src_1, const array_container_t *src_2,
-        container_t **dst);
+int run_array_container_andnot(const run_container_t *src_1,
+                               const array_container_t *src_2, void **dst);
 
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst (which has no container initially).  It will modify src_1
@@ -103,9 +92,8 @@ int run_array_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-int run_array_container_iandnot(
-        run_container_t *src_1, const array_container_t *src_2,
-        container_t **dst);
+int run_array_container_iandnot(run_container_t *src_1,
+                                const array_container_t *src_2, void **dst);
 
 /* dst must be a valid array container, allowed to be src_1 */
 
@@ -124,9 +112,8 @@ void array_run_container_iandnot(array_container_t *src_1,
  * can become any kind of container.
  */
 
-int run_run_container_andnot(
-        const run_container_t *src_1, const run_container_t *src_2,
-        container_t **dst);
+int run_run_container_andnot(const run_container_t *src_1,
+                             const run_container_t *src_2, void **dst);
 
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst (which has no container initially).  It will modify src_1
@@ -135,9 +122,8 @@ int run_run_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-int run_run_container_iandnot(
-        run_container_t *src_1, const run_container_t *src_2,
-        container_t **dst);
+int run_run_container_iandnot(run_container_t *src_1,
+                              const run_container_t *src_2, void **dst);
 
 /*
  * dst is a valid array container and may be the same as src_1
@@ -157,9 +143,9 @@ void array_array_container_iandnot(array_container_t *src_1,
  * "dst is a bitset"
  */
 
-bool bitset_bitset_container_andnot(
-        const bitset_container_t *src_1, const bitset_container_t *src_2,
-        container_t **dst);
+bool bitset_bitset_container_andnot(const bitset_container_t *src_1,
+                                    const bitset_container_t *src_2,
+                                    void **dst);
 
 /* Compute the andnot of src_1 and src_2 and write the result to
  * dst (which has no container initially).  It will modify src_1
@@ -168,12 +154,7 @@ bool bitset_bitset_container_andnot(
  * cases, the caller is responsible for deallocating dst.
  * Returns true iff dst is a bitset  */
 
-bool bitset_bitset_container_iandnot(
-        bitset_container_t *src_1, const bitset_container_t *src_2,
-        container_t **dst);
-
-#ifdef __cplusplus
-} } }  // extern "C" { namespace roaring { namespace internal {
-#endif
-
+bool bitset_bitset_container_iandnot(bitset_container_t *src_1,
+                                     const bitset_container_t *src_2,
+                                     void **dst);
 #endif

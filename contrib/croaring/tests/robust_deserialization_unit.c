@@ -9,10 +9,9 @@
 #include <string.h>
 
 #include <roaring/roaring.h>
-#include <roaring/misc/configreport.h>
+
 
 #include "config.h"
-
 #include "test.h"
 
 
@@ -23,7 +22,7 @@ long filesize(FILE* fp) {
 
 char* readfile(FILE* fp, size_t * bytes) {
     *bytes = filesize(fp);
-    char* buf = (char*)malloc(*bytes);
+    char* buf = malloc(*bytes);
     if(buf == NULL) return NULL;
 
     rewind(fp);
@@ -73,7 +72,7 @@ int test_deserialize(const char * filename) {
 
     size_t expected_size = roaring_bitmap_portable_size_in_bytes(bitmap);
 
-    char* output_buffer = (char*)malloc(expected_size);
+    char* output_buffer = malloc(expected_size);
     size_t actual_size =
         roaring_bitmap_portable_serialize(bitmap, output_buffer);
 
@@ -98,7 +97,7 @@ int test_deserialize(const char * filename) {
 
 
 
-DEFINE_TEST(test_robust_deserialize1) {
+void test_robust_deserialize1() {
     char filename[1024];
 
     strcpy(filename, TEST_DATA_DIR);
@@ -108,7 +107,7 @@ DEFINE_TEST(test_robust_deserialize1) {
 }
 
 
-DEFINE_TEST(test_robust_deserialize2) {
+void test_robust_deserialize2() {
     char filename[1024];
 
     strcpy(filename, TEST_DATA_DIR);
@@ -118,7 +117,7 @@ DEFINE_TEST(test_robust_deserialize2) {
 }
 
 
-DEFINE_TEST(test_robust_deserialize3) {
+void test_robust_deserialize3() {
     char filename[1024];
 
     strcpy(filename, TEST_DATA_DIR);
@@ -127,7 +126,7 @@ DEFINE_TEST(test_robust_deserialize3) {
     test_deserialize(filename);
 }
 
-DEFINE_TEST(test_robust_deserialize4) {
+void test_robust_deserialize4() {
     char filename[1024];
 
     strcpy(filename, TEST_DATA_DIR);
@@ -136,7 +135,7 @@ DEFINE_TEST(test_robust_deserialize4) {
     test_deserialize(filename);
 }
 
-DEFINE_TEST(test_robust_deserialize5) {
+void test_robust_deserialize5() {
     char filename[1024];
 
     strcpy(filename, TEST_DATA_DIR);
@@ -145,7 +144,7 @@ DEFINE_TEST(test_robust_deserialize5) {
     test_deserialize(filename);
 }
 
-DEFINE_TEST(test_robust_deserialize6) {
+void test_robust_deserialize6() {
     char filename[1024];
 
     strcpy(filename, TEST_DATA_DIR);
@@ -154,7 +153,7 @@ DEFINE_TEST(test_robust_deserialize6) {
     test_deserialize(filename);
 }
 
-DEFINE_TEST(test_robust_deserialize7) {
+void test_robust_deserialize7() {
     char filename[1024];
 
     strcpy(filename, TEST_DATA_DIR);
@@ -163,7 +162,7 @@ DEFINE_TEST(test_robust_deserialize7) {
     test_deserialize(filename);
 }
 
-DEFINE_TEST(test_robust_deserialize8) {
+void test_robust_deserialize8() {
     char filename[1024];
 
     strcpy(filename, TEST_DATA_DIR);
@@ -173,8 +172,6 @@ DEFINE_TEST(test_robust_deserialize8) {
 }
 
 int main() {
-    tellmeall();
-
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_robust_deserialize1),
         cmocka_unit_test(test_robust_deserialize2),

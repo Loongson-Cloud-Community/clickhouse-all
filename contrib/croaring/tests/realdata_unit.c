@@ -2,17 +2,8 @@
  * realdata_unit.c
  */
 #define _GNU_SOURCE
-
-#include <assert.h>
-
-#include <roaring/roaring.h>  // public api
-
-#include <roaring/array_util.h>  // union_uint32(), intersection_uint32()
-#include <roaring/misc/configreport.h>
-
-#ifdef __cplusplus  // stronger type checking errors if C built in C++ mode
-    using namespace roaring::internal;
-#endif
+#include <roaring/roaring.h>
+#include <roaring/roaring_types.h>
 
 #include "../benchmarks/numbersfromtextfiles.h"
 #include "config.h"
@@ -25,8 +16,7 @@ static roaring_bitmap_t **create_all_bitmaps(size_t *howmany,
                                              bool copy_on_write) {
     if (numbers == NULL) return NULL;
     printf("Constructing %d  bitmaps.\n", (int)count);
-    roaring_bitmap_t **answer =
-            (roaring_bitmap_t**)malloc(sizeof(roaring_bitmap_t *) * count);
+    roaring_bitmap_t **answer = malloc(sizeof(roaring_bitmap_t *) * count);
     for (size_t i = 0; i < count; i++) {
         printf(".");
         fflush(stdout);
@@ -44,7 +34,7 @@ const char *datadir[] = {
 
 bool serialize_correctly(roaring_bitmap_t *r) {
     uint32_t expectedsize = roaring_bitmap_portable_size_in_bytes(r);
-    char *serialized = (char*)malloc(expectedsize);
+    char *serialized = malloc(expectedsize);
     if (serialized == NULL) {
         printf("failure to allocate memory!\n");
         return false;
@@ -795,8 +785,7 @@ bool loadAndCheckAll(const char *dirname, bool copy_on_write) {
         }
     }
 
-    roaring_bitmap_t **bitmapswrun =
-            (roaring_bitmap_t**)malloc(sizeof(roaring_bitmap_t *) * count);
+    roaring_bitmap_t **bitmapswrun = malloc(sizeof(roaring_bitmap_t *) * count);
     for (int i = 0; i < (int)count; i++) {
         bitmapswrun[i] = roaring_bitmap_copy(bitmaps[i]);
         roaring_bitmap_run_optimize(bitmapswrun[i]);
@@ -863,8 +852,6 @@ bool loadAndCheckAll(const char *dirname, bool copy_on_write) {
 }
 
 int main() {
-    tellmeall();
-
     char dirbuffer[1024];
     size_t bddl = strlen(BENCHMARK_DATA_DIR);
     strcpy(dirbuffer, BENCHMARK_DATA_DIR);

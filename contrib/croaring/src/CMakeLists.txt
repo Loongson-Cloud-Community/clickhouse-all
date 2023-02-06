@@ -33,28 +33,23 @@ set(ROARING_SRC
     roaring_priority_queue.c
     roaring_array.c)
 
-if(ROARING_BUILD_C_AS_CPP)  # more checks and tools, e.g. <type_traits> analysis 
-  SET_SOURCE_FILES_PROPERTIES(${ROARING_SRC} PROPERTIES LANGUAGE CXX)
-endif()
-
 add_library(${ROARING_LIB_NAME} ${ROARING_LIB_TYPE} ${ROARING_SRC})
 target_include_directories(${ROARING_LIB_NAME}
   PUBLIC
    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(${ROARING_LIB_NAME} PUBLIC roaring-headers)
-target_link_libraries(${ROARING_LIB_NAME} PUBLIC roaring-headers-cpp)
+
 #
 #install(TARGETS ${ROARING_LIB_NAME} DESTINATION lib)
 #
-install(TARGETS ${ROARING_LIB_NAME} 
+install(TARGETS ${ROARING_LIB_NAME}
    EXPORT ${ROARING_LIB_NAME}-config
    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-   INCLUDES DESTINATION ${CMAKE_INSTALL_INCDIR}
 )
+
 install(EXPORT ${ROARING_LIB_NAME}-config
    FILE ${ROARING_LIB_NAME}-config.cmake
    NAMESPACE ${ROARING_LIB_NAME}::
