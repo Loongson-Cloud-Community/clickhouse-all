@@ -12,6 +12,9 @@ foreach(policy
     endif()
 endforeach()
 
+set(CMAKE_CXX_COMPILER "/opt/rh/devtoolset-10/root/bin/g++")
+set(CMAKE_C_COMPILER "/opt/rh/devtoolset-10/root/bin/gcc")
+
 # set default policy
 foreach(default_policy_var_name
         # make option() honor normal variables for BUILD_SHARED_LIBS:
