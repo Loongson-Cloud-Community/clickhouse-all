@@ -124,6 +124,7 @@ information and acquired knowledge:
         defined(_MIPSEL) || \
         defined(__MIPSEL) || \
         defined(__MIPSEL__) || \
+        defined(__loongarch64) || \
         defined(__riscv) || \
         defined(__e2k__)
 #       undef BOOST_ENDIAN_LITTLE_BYTE
