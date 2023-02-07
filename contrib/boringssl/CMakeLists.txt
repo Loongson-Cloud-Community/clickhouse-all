@@ -480,6 +480,9 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^arm*")
 elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "mips")
   # Just to avoid the “unknown processor” error.
   set(ARCH "generic")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "loongarch64")
+  # Just to avoid the “unknown processor” error.
+  set(ARCH "generic")
 elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
   set(ARCH "ppc64le")
 else()
