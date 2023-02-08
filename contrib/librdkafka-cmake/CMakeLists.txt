@@ -138,3 +138,6 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/config.h"
   IMMEDIATE @ONLY
 )
+
+message("librdkafka: CMAKE_CURRENT_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}")
+message("librdkafka: CMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}")
