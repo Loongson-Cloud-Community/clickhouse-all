@@ -173,7 +173,7 @@ endif ()
 include (cmake/check_flags.cmake)
 include (cmake/add_warning.cmake)
 
-set (COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wall -Wno-unused-variable -Wno-unused-parameter -Wno-return-type -Wno-maybe-uninitialized -Wno-uninitialized")    # -Werror and many more is also added inside cmake/warnings.cmake
+set (COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -fpermissive -Wall -Wno-unused-variable -Wno-unused-parameter -Wno-return-type -Wno-maybe-uninitialized -Wno-uninitialized")    # -Werror and many more is also added inside cmake/warnings.cmake
 
 if (COMPILER_CLANG)
     # clang: warning: argument unused during compilation: '-specs=/usr/share/dpkg/no-pie-compile.specs' [-Wunused-command-line-argument]
