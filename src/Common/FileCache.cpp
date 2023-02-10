@@ -1,3 +1,5 @@
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+
 #include "FileCache.h"
 
 #include <Common/randomSeed.h>

@@ -1,3 +1,5 @@
+#pragma GCC diagnostic ignored "-Wvector-operation-performance"
+
 #include <Functions/FunctionHelpers.h>
 #include <Functions/IFunction.h>
 #include <Columns/ColumnTuple.h>

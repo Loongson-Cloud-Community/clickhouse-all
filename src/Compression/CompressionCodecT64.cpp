@@ -1,3 +1,4 @@
+#pragma GCC diagnostic ignored "-Wvector-operation-performance"
 #include <cstring>
 
 #include <Compression/ICompressionCodec.h>

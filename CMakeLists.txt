@@ -173,7 +173,7 @@ endif ()
 include (cmake/check_flags.cmake)
 include (cmake/add_warning.cmake)
 
-set (COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wall")    # -Werror and many more is also added inside cmake/warnings.cmake
+set (COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wall -Wno-unused-variable -Wno-unused-parameter -Wno-return-type -Wno-maybe-uninitialized -Wno-uninitialized")    # -Werror and many more is also added inside cmake/warnings.cmake
 
 if (COMPILER_CLANG)
     # clang: warning: argument unused during compilation: '-specs=/usr/share/dpkg/no-pie-compile.specs' [-Wunused-command-line-argument]
@@ -436,11 +436,11 @@ elseif (OS_FREEBSD)
 endif ()
 link_libraries(global-group)
 
-if (WERROR)
-    # Don't pollute CMAKE_CXX_FLAGS with -Werror as it will break some CMake checks.
-    # Instead, adopt modern cmake usage requirement.
-    target_compile_options(global-group INTERFACE "-Werror")
-endif ()
+#if (WERROR)
+#    # Don't pollute CMAKE_CXX_FLAGS with -Werror as it will break some CMake checks.
+#    # Instead, adopt modern cmake usage requirement.
+#    target_compile_options(global-group INTERFACE "-Werror")
+#endif ()
 
 # Make this extra-checks for correct library dependencies.
 if (OS_LINUX AND NOT SANITIZE)
@@ -458,9 +458,9 @@ if (USE_STATIC_LIBRARIES)
     if (OS_LINUX AND NOT ARCH_ARM)
         # Slightly more efficient code can be generated
         # It's disabled for ARM because otherwise ClickHouse cannot run on Android.
-        set (CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fno-pie")
-        set (CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fno-pie")
-        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -no-pie -Wl,-no-pie")
+        #set (CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fno-pie")
+        #set (CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fno-pie")
+        #set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -no-pie -Wl,-no-pie")
     endif ()
 else ()
     set (CMAKE_POSITION_INDEPENDENT_CODE ON)

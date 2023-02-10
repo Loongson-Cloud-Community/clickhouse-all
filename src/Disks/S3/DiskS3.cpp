@@ -280,7 +280,7 @@ std::unique_ptr<WriteBufferFromFileBase> DiskS3::writeFile(const String & path, 
                 /// Usually it could be ok, because thread pool task is executed before user-level memory tracker is destroyed.
                 /// However, thread could stay alive inside the thread pool, and it's ThreadStatus as well.
                 /// When, finally, we destroy the thread (and the ThreadStatus),
-                /// it can use memory tracker in the ~ThreadStatus in order to alloc/free untracked_memory,\
+                /// it can use memory tracker in the ~ThreadStatus in order to alloc/free untracked_memory,
                 /// and by this time user-level memory tracker may be already destroyed.
                 ///
                 /// As a work-around, reset memory tracker to total, which is always alive.
